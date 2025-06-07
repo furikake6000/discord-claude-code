@@ -14,11 +14,10 @@ export class ClaudeWrapper {
   }
 
   async executeCommand(prompt: string): Promise<ClaudeResult> {
-    return new Promise((resolve) => {
-      const claude = spawn('claude', [prompt], {
+    return new Promise((resolve, reject) => {
+      const claude = spawn('claude', ['-p', prompt], {
         cwd: this.workingDir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: true
+        stdio: ['inherit', 'pipe', 'pipe'],
       });
 
       let output = '';

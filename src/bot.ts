@@ -68,14 +68,31 @@ class DiscordClaudeBot {
 
     try {
       console.log(`📝 Executing: ${prompt}`);
+      
+      // Post the prompt that will be sent to Claude Code
+      const isInThread = message.channel.isThread();
+      let responseChannel = message.channel;
+      
+      if (!isInThread && 'startThread' in message) {
+        // Start a thread if not already in one
+        const thread = await message.startThread({
+          name: `Claude Code: ${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}`,
+        });
+        responseChannel = thread;
+      }
+
       const result = await this.claude.executeCommand(prompt);
+      
+      console.log(`✅ Command executed successfully: ${result.output || 'No output'}`);
 
       if (result.error) {
-        await this.sendLongMessage(message, `❌ エラーが発生しました:\n\`\`\`\n${result.error}\n\`\`\``);
+        await this.sendLongMessageToChannel(responseChannel, `❌ エラーが発生しました:\n\`\`\`\n${result.error}\n\`\`\``);
       } else if (result.output) {
-        await this.sendLongMessage(message, result.output);
+        await this.sendLongMessageToChannel(responseChannel, result.output);
       } else {
-        await message.reply('✅ コマンドが実行されましたが、出力はありませんでした。');
+        if ('send' in responseChannel) {
+          await responseChannel.send('✅ コマンドが実行されましたが、出力はありませんでした。');
+        }
       }
     } catch (error) {
       console.error('Error executing Claude command:', error);
@@ -116,6 +133,26 @@ class DiscordClaudeBot {
       } else if ('send' in message.channel) {
         await message.channel.send(chunks[i]);
       }
+    }
+  }
+
+  private async sendLongMessageToChannel(channel: TextBasedChannel, content: string): Promise<void> {
+    if (!('send' in channel)) {
+      return;
+    }
+
+    const maxLength = 2000;
+    
+    if (content.length <= maxLength) {
+      await channel.send(content);
+      return;
+    }
+
+    // Split long messages
+    const chunks = this.splitMessage(content, maxLength);
+    
+    for (const chunk of chunks) {
+      await channel.send(chunk);
     }
   }
 
