@@ -1,5 +1,8 @@
-import { Client, GatewayIntentBits, Message } from 'discord.js';
+import { Client, GatewayIntentBits, Message, TextBasedChannel } from 'discord.js';
 import { ClaudeWrapper } from './claude-wrapper';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 class DiscordClaudeBot {
   private client: Client;
@@ -12,7 +15,7 @@ class DiscordClaudeBot {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.DirectMessages,
       ]
     });
 
@@ -35,11 +38,21 @@ class DiscordClaudeBot {
   }
 
   private async handleMessage(message: Message): Promise<void> {
+    console.log(`📨 Message received: "${message.content}" from ${message.author.tag}`);
+    
     // Ignore bot messages
-    if (message.author.bot) return;
+    if (message.author.bot) {
+      console.log(`🤖 Ignoring bot message from ${message.author.tag}`);
+      return;
+    }
 
     // Check if bot is mentioned
-    if (!this.isBotMentioned(message)) return;
+    if (!this.isBotMentioned(message)) {
+      console.log(`🚫 Bot not mentioned in message: "${message.content}"`);
+      return;
+    }
+    
+    console.log(`✅ Bot mentioned! Processing message from ${message.author.tag}`);
 
     // Extract command from message (remove mention)
     const prompt = this.extractPrompt(message);
@@ -49,7 +62,9 @@ class DiscordClaudeBot {
     }
 
     // Show typing indicator
-    await message.channel.sendTyping();
+    if ('sendTyping' in message.channel) {
+      await message.channel.sendTyping();
+    }
 
     try {
       console.log(`📝 Executing: ${prompt}`);
@@ -98,7 +113,7 @@ class DiscordClaudeBot {
     for (let i = 0; i < chunks.length; i++) {
       if (i === 0) {
         await message.reply(chunks[i]);
-      } else {
+      } else if ('send' in message.channel) {
         await message.channel.send(chunks[i]);
       }
     }
