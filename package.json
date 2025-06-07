@@ -1,0 +1,27 @@
+{
+  "name": "discord-claude-code",
+  "version": "1.0.0",
+  "description": "Discord bot that wraps Claude Code functionality",
+  "main": "dist/bot.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/bot.js",
+    "dev": "ts-node src/bot.ts",
+    "lint": "eslint src --ext .ts",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0"
+  },
+  "keywords": ["discord", "bot", "claude", "development", "ai"],
+  "author": "",
+  "license": "MIT"
+}
