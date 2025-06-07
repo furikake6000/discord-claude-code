@@ -4,6 +4,7 @@ export interface ClaudeResult {
   output: string;
   error?: string;
   exitCode: number;
+  sessionId?: string;
 }
 
 export class ClaudeWrapper {
@@ -13,9 +14,14 @@ export class ClaudeWrapper {
     this.workingDir = workingDir;
   }
 
-  async executeCommand(prompt: string): Promise<ClaudeResult> {
-    return new Promise((resolve, reject) => {
-      const claude = spawn('claude', ['-p', prompt], {
+  async executeCommand(prompt: string, sessionId?: string): Promise<ClaudeResult> {
+    return new Promise((resolve) => {
+      const args = ['--output-format', 'json', '-p', prompt];
+      if (sessionId) {
+        args.push('--resume', sessionId);
+      }
+
+      const claude = spawn('claude', args, {
         cwd: this.workingDir,
         stdio: ['inherit', 'pipe', 'pipe'],
       });
@@ -32,10 +38,24 @@ export class ClaudeWrapper {
       });
 
       claude.on('close', (code) => {
+        let parsedOutput = '';
+        let extractedSessionId: string | undefined;
+
+        try {
+          // Try to parse JSON output
+          const jsonOutput = JSON.parse(output);
+          parsedOutput = jsonOutput.result;
+          extractedSessionId = jsonOutput.session_id;
+        } catch {
+          // Fallback to raw output if JSON parsing fails
+          parsedOutput = output;
+        }
+
         resolve({
-          output: output.trim(),
+          output: parsedOutput.trim(),
           error: error.trim() || undefined,
-          exitCode: code || 0
+          exitCode: code || 0,
+          sessionId: extractedSessionId
         });
       });
 

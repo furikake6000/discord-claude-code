@@ -37,10 +37,9 @@ describe('ClaudeWrapper', () => {
 
       await promise;
 
-      expect(mockSpawn).toHaveBeenCalledWith('claude', ['-p', 'test prompt'], {
+      expect(mockSpawn).toHaveBeenCalledWith('claude', ['--output-format', 'json', '-p', 'test prompt'], {
         cwd: '/test/dir',
-        stdio: ['inherit', 'pipe', 'pipe'],
-        env: process.env
+        stdio: ['inherit', 'pipe', 'pipe']
       });
     });
 
@@ -59,7 +58,8 @@ describe('ClaudeWrapper', () => {
       expect(result).toEqual({
         output: 'Hello World',
         error: undefined,
-        exitCode: 0
+        exitCode: 0,
+        sessionId: undefined
       });
     });
 
@@ -78,7 +78,8 @@ describe('ClaudeWrapper', () => {
       expect(result).toEqual({
         output: 'Some output',
         error: 'Error occurred',
-        exitCode: 1
+        exitCode: 1,
+        sessionId: undefined
       });
     });
 
@@ -96,7 +97,8 @@ describe('ClaudeWrapper', () => {
       expect(result).toEqual({
         output: '',
         error: 'Command not found',
-        exitCode: 1
+        exitCode: 1,
+        sessionId: undefined
       });
     });
 
@@ -128,6 +130,45 @@ describe('ClaudeWrapper', () => {
       const result: ClaudeResult = await promise;
 
       expect(result.error).toBeUndefined();
+    });
+
+    it('should include session ID when provided', async () => {
+      const mockProcess = createMockProcess();
+      mockSpawn.mockReturnValue(mockProcess as any);
+
+      const promise = claudeWrapper.executeCommand('test prompt', 'session123');
+      
+      mockProcess.emit('close', 0);
+
+      await promise;
+
+      expect(mockSpawn).toHaveBeenCalledWith('claude', ['--output-format', 'json', '-p', 'test prompt', '--resume', 'session123'], {
+        cwd: '/test/dir',
+        stdio: ['inherit', 'pipe', 'pipe']
+      });
+    });
+
+    it('should parse JSON output and extract session ID', async () => {
+      const mockProcess = createMockProcess();
+      mockSpawn.mockReturnValue(mockProcess as any);
+
+      const promise = claudeWrapper.executeCommand('test prompt');
+      
+      const jsonOutput = JSON.stringify({
+        content: 'Hello from Claude',
+        sessionId: 'session456'
+      });
+      mockProcess.stdout.emit('data', jsonOutput);
+      mockProcess.emit('close', 0);
+
+      const result: ClaudeResult = await promise;
+
+      expect(result).toEqual({
+        output: 'Hello from Claude',
+        error: undefined,
+        exitCode: 0,
+        sessionId: 'session456'
+      });
     });
   });
 
