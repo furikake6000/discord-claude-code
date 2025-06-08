@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Message, TextBasedChannel } from 'discord.js';
+import { Client, GatewayIntentBits, Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
 import { ClaudeWrapper } from './claude-wrapper';
 import * as dotenv from 'dotenv';
 
@@ -36,13 +36,23 @@ class DiscordClaudeBot {
     });
 
     this.client.on('messageCreate', async (message: Message) => {
-      await this.handleMessage(message);
+      // Ignore non-guild messages
+      if (!message.inGuild) return;
+
+      await this.handleMessage(message as Message<true>);
     });
   }
 
-  private async handleMessage(message: Message): Promise<void> {
+  private async handleMessage(message: Message<true>): Promise<void> {
     console.log(`📨 Message received: "${message.content}" from ${message.author.tag}`);
     
+    let channel = message.channel;
+    // Stage channels and forum threads are not supported for threads
+    if (channel instanceof StageChannel) {
+      console.log(`🚫 This channel type is not supported. Ignoring message from ${message.author.tag}`)
+      return;
+    }
+
     // Ignore bot messages
     if (message.author.bot) {
       console.log(`🤖 Ignoring bot message from ${message.author.tag}`);
@@ -50,7 +60,7 @@ class DiscordClaudeBot {
     }
 
     // Check if bot is mentioned (or if we're in a thread)
-    const isInThread = message.channel.isThread();
+    const isInThread = channel.isThread();
     if (!isInThread && !this.isBotMentioned(message)) {
       console.log(`🚫 Bot not mentioned in message: "${message.content}"`);
       return;
@@ -66,33 +76,28 @@ class DiscordClaudeBot {
     }
 
     // Show typing indicator
-    if ('sendTyping' in message.channel) {
-      await message.channel.sendTyping();
-    }
+    await channel.sendTyping();
 
     try {
       console.log(`📝 Executing: ${prompt}`);
       
-      // Post the prompt that will be sent to Claude Code  
-      let responseChannel = message.channel;
-      
-      if (!isInThread && 'startThread' in message) {
+      if (!isInThread) {
         // Start a thread if not already in one
         const thread = await message.startThread({
           name: `Claude Code: ${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}`,
         });
-        responseChannel = thread;
+        channel = thread;
       }
 
       // Check if we're in a thread and have an existing session
-      const threadId = isInThread ? message.channel.id : null;
+      const threadId = isInThread ? channel.id : null;
       const existingSessionId = threadId ? this.threadSessionMap.get(threadId) : undefined;
       
       let finalPrompt = prompt;
       
       // If we're in a thread but don't have a session ID, include thread history
       if (isInThread && !existingSessionId) {
-        const threadHistory = await this.getThreadHistory(message.channel, message.id);
+        const threadHistory = await this.getThreadHistory(channel, message.id);
         if (threadHistory) {
           finalPrompt = `以下は過去の会話履歴です：\n\n${threadHistory}\n\n---\n\n${prompt}`;
           console.log(`📚 Added thread history to prompt (${threadHistory.length} chars)`);
@@ -105,22 +110,20 @@ class DiscordClaudeBot {
       if (result.sessionId) {
         if (threadId) {
           this.threadSessionMap.set(threadId, result.sessionId);
-        } else if (responseChannel.isThread()) {
+        } else if (channel.isThread()) {
           // New thread was created
-          this.threadSessionMap.set(responseChannel.id, result.sessionId);
+          this.threadSessionMap.set(channel.id, result.sessionId);
         }
       }
       
       console.log(`✅ Command executed successfully: ${result.output || 'No output'}`);
 
       if (result.error) {
-        await this.sendLongMessageToChannel(responseChannel, `❌ エラーが発生しました:\n\`\`\`\n${result.error}\n\`\`\``);
+        await this.sendToChannel(channel, `❌ エラーが発生しました:\n\`\`\`\n${result.error}\n\`\`\``);
       } else if (result.output) {
-        await this.sendLongMessageToChannel(responseChannel, result.output);
+        await this.sendToChannel(channel, result.output);
       } else {
-        if ('send' in responseChannel) {
-          await responseChannel.send('✅ コマンドが実行されましたが、出力はありませんでした。');
-        }
+        await this.sendToChannel(channel, '✅ コマンドが実行されましたが、出力はありませんでした。');
       }
     } catch (error) {
       console.error('Error executing Claude command:', error);
@@ -144,31 +147,7 @@ class DiscordClaudeBot {
     return content;
   }
 
-  private async sendLongMessage(message: Message, content: string): Promise<void> {
-    const maxLength = 2000;
-    
-    if (content.length <= maxLength) {
-      await message.reply(content);
-      return;
-    }
-
-    // Split long messages
-    const chunks = this.splitMessage(content, maxLength);
-    
-    for (let i = 0; i < chunks.length; i++) {
-      if (i === 0) {
-        await message.reply(chunks[i]);
-      } else if ('send' in message.channel) {
-        await message.channel.send(chunks[i]);
-      }
-    }
-  }
-
-  private async sendLongMessageToChannel(channel: TextBasedChannel, content: string): Promise<void> {
-    if (!('send' in channel)) {
-      return;
-    }
-
+  private async sendToChannel(channel: GuildTextBasedChannel, content: string): Promise<void> {
     const maxLength = 2000;
     
     if (content.length <= maxLength) {
