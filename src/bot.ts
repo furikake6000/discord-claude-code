@@ -24,9 +24,7 @@ class DiscordClaudeBot {
       ]
     });
 
-    this.claude = new ClaudeWrapper(
-      process.env.CLAUDE_WORK_DIR || '/home/furikake/claude_code/git'
-    );
+    this.claude = new ClaudeWrapper(process.env.CLAUDE_WORK_DIR || process.cwd());
 
     this.setupEventHandlers();
   }
