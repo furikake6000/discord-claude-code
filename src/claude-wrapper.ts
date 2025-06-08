@@ -17,6 +17,17 @@ export class ClaudeWrapper {
   async executeCommand(prompt: string, sessionId?: string): Promise<ClaudeResult> {
     return new Promise((resolve) => {
       const args = ['--output-format', 'json', '-p', prompt];
+      
+      // 権限設定（環境変数で制御可能）
+      const skipPermissions = process.env.CLAUDE_SKIP_PERMISSIONS === 'true';
+      const allowedTools = process.env.CLAUDE_ALLOWED_TOOLS;
+      
+      if (skipPermissions) {
+        args.unshift('--dangerously-skip-permissions');
+      } else if (allowedTools) {
+        args.unshift('--allowedTools', allowedTools);
+      }
+      
       if (sessionId) {
         args.push('--resume', sessionId);
       }
