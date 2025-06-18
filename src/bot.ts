@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
-import { ClaudeWrapper } from './claude-wrapper';
+import { ClaudeWrapper, StreamCallback } from './claude-wrapper';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -104,7 +104,65 @@ class DiscordClaudeBot {
         }
       }
       
-      const result = await this.claude.executeCommand(finalPrompt, existingSessionId);
+      // ストリーミングコールバック設定
+      //let thinkingMessage: Message | null = null;
+      let toolsMessage: Message | null = null;
+      //let assistantMessage: Message | null = null;
+      //let lastThinkingContent = '';
+      let lastAssistantContent = '';
+      let toolsHistory: string[] = [];
+      
+      const callbacks: StreamCallback = {
+        onThinking: async (content: string) => {
+          await this.sendToChannel(channel, `💭 **思考過程:**\n\`\`\`\n${content}\`\`\``);
+        },
+        onAssistantMessage: async (text: string) => {
+          if (text === lastAssistantContent) {
+            // Claude Codeのストリーミングでは、同じ内容が繰り返されることがあるため、重複を避ける
+            return;
+          }
+          lastAssistantContent = text;
+          await this.sendToChannel(channel, text);
+        },
+        onToolUse: async (toolName: string, details: any) => {
+          if (toolName === 'result') {
+            // ツール結果の場合は詳細に表示しない
+            return;
+          }
+          
+          let toolDetail = `🔧 ${toolName}`;
+          if (details.file_path) {
+            toolDetail += ` → "${details.file_path}"`;
+          } else if (details.path) {
+            toolDetail += ` → "${details.path}"`;
+          } else if (details.pattern) {
+            toolDetail += ` → 検索: "${details.pattern}"`;
+          } else if (details.command) {
+            toolDetail += ` → "${details.command}"`;
+          }
+          
+          // ツール履歴に追加（最新3件のみ保持）
+          toolsHistory.push(toolDetail);
+          if (toolsHistory.length > 3) {
+            toolsHistory = toolsHistory.slice(-3);
+          }
+          
+          const toolsText = `🔧 **ツール実行履歴:**\n\`\`\`\n${toolsHistory.join("\n")}\`\`\``;
+          
+          if (toolsMessage) {
+            try {
+              await toolsMessage.edit(toolsText);
+            } catch (error) {
+              console.warn('Failed to edit tools message:', error);
+              toolsMessage = await channel.send(toolsText);
+            }
+          } else {
+            toolsMessage = await channel.send(toolsText);
+          }
+        }
+      };
+      
+      const result = await this.claude.executeCommandWithStreaming(finalPrompt, existingSessionId, callbacks);
       
       // Store session ID for future use in this thread
       if (result.sessionId) {
@@ -118,12 +176,17 @@ class DiscordClaudeBot {
       
       console.log(`✅ Command executed successfully: ${result.output || 'No output'}`);
 
+      // 最終状態を更新
       if (result.error) {
-        await this.sendToChannel(channel, `❌ エラーが発生しました:\n\`\`\`\n${result.error}\n\`\`\``);
+        await this.sendToChannel(channel, `❌ **エラーが発生しました:**\n\`\`\`\n${result.error}\n\`\`\``);
+      } else if (lastAssistantContent) {
+        // ストリーミングで回答がある場合は、完了マークを追加
+        await this.sendToChannel(channel, `✅ **回答完了**`);
       } else if (result.output) {
-        await this.sendToChannel(channel, result.output);
+        // ストリーミング回答がなく、結果出力がある場合
+        await this.sendToChannel(channel, `📝 **回答:**\n${result.output}\n\n✅ **完了**`);
       } else {
-        await this.sendToChannel(channel, '✅ コマンドが実行されましたが、出力はありませんでした。');
+        await this.sendToChannel(channel, '✅ **処理完了** - 出力はありませんでした。');
       }
     } catch (error) {
       console.error('Error executing Claude command:', error);
