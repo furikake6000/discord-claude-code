@@ -1,12 +1,12 @@
 import { Client, GatewayIntentBits, Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
-import { ClaudeWrapper, StreamCallback } from './claude-wrapper';
+import { ClaudeSDKWrapper, StreamCallback } from './claude-sdk-wrapper';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 class DiscordClaudeBot {
   private client: Client;
-  private claude: ClaudeWrapper;
+  private claude: ClaudeSDKWrapper;
   private botUserId?: string;
   private threadSessionMap: Map<string, string> = new Map();
   
@@ -24,7 +24,7 @@ class DiscordClaudeBot {
       ]
     });
 
-    this.claude = new ClaudeWrapper(process.env.CLAUDE_WORK_DIR || process.cwd());
+    this.claude = new ClaudeSDKWrapper(process.cwd() + '/working_dir');
 
     this.setupEventHandlers();
   }

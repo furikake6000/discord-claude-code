@@ -16,6 +16,7 @@
     "pm2:delete": "pm2 delete discord-bot-dev || true"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.31",
     "discord.js": "^14.14.1",
     "dotenv": "^16.5.0"
   },
