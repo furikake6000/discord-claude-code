@@ -1,0 +1,23 @@
+{
+  "name": "Discode Claude Code",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+  "mounts": [
+    "source=claude-config,target=/home/node/.claude,type=volume",
+    "source=claude-cache,target=/home/node/.cache/claude-cli-nodejs,type=volume"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-eslint"
+      ]
+    }
+  },
+  "forwardPorts": [3000],
+  "postCreateCommand": "npm install && npm run dev",
+  "remoteUser": "node"
+}
