@@ -5,7 +5,8 @@
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "mounts": [
-    "source=claude-config,target=/home/node/.claude,type=volume",
+    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/node/.claude.json,type=bind,consistency=cached",
     "source=claude-cache,target=/home/node/.cache/claude-cli-nodejs,type=volume"
   ],
   "customizations": {

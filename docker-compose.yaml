@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  discord-claude-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: discord-claude-bot
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CLAUDE_WORK_DIR=/workspace/working_dir
+      - CLAUDE_SKIP_PERMISSIONS=true
+    volumes:
+      - ./:/workspace
+      - ${HOME}/.claude.json:/home/node/.claude.json
+      - ${HOME}/.claude:/home/node/.claude
+      - claude-cache:/home/node/.cache/claude-cli-nodejs
+    ports:
+      - "3000:3000"
+    working_dir: /workspace
+    user: node
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+volumes:
+  claude-cache:
