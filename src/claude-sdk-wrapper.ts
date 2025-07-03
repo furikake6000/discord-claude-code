@@ -19,20 +19,18 @@ export interface StreamCallback {
 }
 
 export class ClaudeSDKWrapper {
-  private workingDir: string;
-
-  constructor(workingDir: string = process.cwd()) {
-    this.workingDir = workingDir;
+  constructor() {
+    // ステートレスなクラスに変更 - working dirは引数で受け取る
   }
 
-  async executeCommand(prompt: string, sessionId?: string): Promise<ClaudeResult> {
+  async executeCommand(prompt: string, sessionId?: string, workingDir: string = process.cwd()): Promise<ClaudeResult> {
     try {
       const messages: SDKMessage[] = [];
       const abortController = new AbortController();
 
       // Configure options based on environment variables
       const options: Options = {
-        cwd: this.workingDir,
+        cwd: workingDir,
         maxTurns: 10 // Default reasonable limit
       };
 
@@ -106,14 +104,14 @@ export class ClaudeSDKWrapper {
     }
   }
 
-  async executeCommandWithStreaming(prompt: string, sessionId?: string, callbacks?: StreamCallback): Promise<ClaudeResult> {
+  async executeCommandWithStreaming(prompt: string, sessionId?: string, callbacks?: StreamCallback, workingDir: string = process.cwd()): Promise<ClaudeResult> {
     try {
 
       const messages: SDKMessage[] = [];
       const abortController = new AbortController();
 
       const options: Options = {
-        cwd: this.workingDir,
+        cwd: workingDir,
         maxTurns: 10
       };
 
@@ -239,11 +237,4 @@ export class ClaudeSDKWrapper {
     }
   }
 
-  setWorkingDirectory(dir: string): void {
-    this.workingDir = dir;
-  }
-
-  getWorkingDirectory(): string {
-    return this.workingDir;
-  }
 }

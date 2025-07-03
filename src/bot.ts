@@ -29,7 +29,7 @@ class DiscordClaudeBot {
 
     // Initialize base working directory from environment variable or default
     this.baseWorkingDir = process.env.CLAUDE_WORK_DIR || path.join(process.cwd(), 'working_dir');
-    this.claude = new ClaudeSDKWrapper(this.baseWorkingDir);
+    this.claude = new ClaudeSDKWrapper();
 
     this.setupEventHandlers();
   }
@@ -105,11 +105,8 @@ class DiscordClaudeBot {
         return;
       }
       
-      // Update Claude SDK wrapper's working directory if it changed
-      if (this.claude.getWorkingDirectory() !== workspacePath) {
-        this.claude.setWorkingDirectory(workspacePath);
-        console.log(`🔄 Workspace switched to: ${workspacePath}`);
-      }
+      // Working directory will be passed directly to executeCommandWithStreaming
+      console.log(`🔄 Using workspace: ${workspacePath}`);
 
       // Check if we're in a thread and have an existing session
       const threadId = isInThread ? channel.id : null;
@@ -184,7 +181,7 @@ class DiscordClaudeBot {
         }
       };
       
-      const result = await this.claude.executeCommandWithStreaming(finalPrompt, existingSessionId, callbacks);
+      const result = await this.claude.executeCommandWithStreaming(finalPrompt, existingSessionId, callbacks, workspacePath);
       
       // Store session ID for future use in this thread
       if (result.sessionId) {
