@@ -1,6 +1,8 @@
 import { Client, GatewayIntentBits, Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
 import { ClaudeSDKWrapper, StreamCallback } from './claude-sdk-wrapper';
 import * as dotenv from 'dotenv';
+import * as path from 'path';
+import * as fs from 'fs';
 
 dotenv.config();
 
@@ -9,6 +11,7 @@ class DiscordClaudeBot {
   private claude: ClaudeSDKWrapper;
   private botUserId?: string;
   private threadSessionMap: Map<string, string> = new Map();
+  private baseWorkingDir: string;
   
   // Configuration for thread history fallback
   private static readonly MAX_HISTORY_MESSAGES = 20;
@@ -24,7 +27,9 @@ class DiscordClaudeBot {
       ]
     });
 
-    this.claude = new ClaudeSDKWrapper(process.cwd() + '/working_dir');
+    // Initialize base working directory from environment variable or default
+    this.baseWorkingDir = process.env.CLAUDE_WORK_DIR || path.join(process.cwd(), 'working_dir');
+    this.claude = new ClaudeSDKWrapper(this.baseWorkingDir);
 
     this.setupEventHandlers();
   }
@@ -87,6 +92,23 @@ class DiscordClaudeBot {
           name: `Claude Code: ${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}`,
         });
         channel = thread;
+      }
+
+      // Determine workspace based on channel name and validate it
+      const workspacePath = this.getWorkspaceForChannel(channel);
+      const isWorkspaceValid = await this.validateWorkspace(workspacePath);
+      
+      if (!isWorkspaceValid) {
+        await message.reply(`❌ ワークスペースディレクトリが見つかりません: \`${workspacePath}\`\n\n` +
+          `💡 **ヒント**: チャンネル名が \`dev_\` で始まる場合、対応するプロジェクトディレクトリが必要です。\n` +
+          `例: \`dev_sample_repo\` → \`${this.baseWorkingDir}/sample_repo/\``);
+        return;
+      }
+      
+      // Update Claude SDK wrapper's working directory if it changed
+      if (this.claude.getWorkingDirectory() !== workspacePath) {
+        this.claude.setWorkingDirectory(workspacePath);
+        console.log(`🔄 Workspace switched to: ${workspacePath}`);
       }
 
       // Check if we're in a thread and have an existing session
@@ -303,6 +325,49 @@ class DiscordClaudeBot {
     } catch (error) {
       console.error('Error fetching thread history:', error);
       return '';
+    }
+  }
+
+  private getWorkspaceForChannel(channel: GuildTextBasedChannel): string {
+    const channelName = channel.name;
+    
+    // Check if channel name starts with 'dev_'
+    if (channelName.startsWith('dev_')) {
+      // Extract project name from channel name (remove 'dev_' prefix)
+      const projectName = channelName.substring(4);
+      const projectWorkspace = path.join(this.baseWorkingDir, projectName);
+      
+      console.log(`🔄 Channel '${channelName}' detected as development channel. Project: ${projectName}`);
+      console.log(`📁 Workspace: ${projectWorkspace}`);
+      
+      return projectWorkspace;
+    }
+    
+    // For non-dev channels, use the base working directory
+    console.log(`📁 Using base workspace: ${this.baseWorkingDir}`);
+    return this.baseWorkingDir;
+  }
+
+  private async validateWorkspace(workspacePath: string): Promise<boolean> {
+    try {
+      // Check if the workspace directory exists
+      if (!fs.existsSync(workspacePath)) {
+        console.log(`⚠️  Workspace directory does not exist: ${workspacePath}`);
+        return false;
+      }
+      
+      // Check if it's a directory
+      const stats = fs.statSync(workspacePath);
+      if (!stats.isDirectory()) {
+        console.log(`⚠️  Workspace path is not a directory: ${workspacePath}`);
+        return false;
+      }
+      
+      console.log(`✅ Workspace validated: ${workspacePath}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error validating workspace ${workspacePath}:`, error);
+      return false;
     }
   }
 
