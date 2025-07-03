@@ -329,7 +329,14 @@ class DiscordClaudeBot {
   }
 
   private getWorkspaceForChannel(channel: GuildTextBasedChannel): string {
-    const channelName = channel.name;
+    // If we're in a thread, get the parent channel name
+    let channelName: string;
+    if (channel.isThread()) {
+      channelName = channel.parent?.name || channel.name;
+      console.log(`📍 Thread detected. Using parent channel: ${channelName}`);
+    } else {
+      channelName = channel.name;
+    }
     
     // Check if channel name starts with 'dev_'
     if (channelName.startsWith('dev_')) {
