@@ -23,87 +23,6 @@ export class ClaudeSDKWrapper {
     // ステートレスなクラスに変更 - working dirは引数で受け取る
   }
 
-  async executeCommand(prompt: string, sessionId?: string, workingDir: string = process.cwd()): Promise<ClaudeResult> {
-    try {
-      const messages: SDKMessage[] = [];
-      const abortController = new AbortController();
-
-      // Configure options based on environment variables
-      const options: Options = {
-        cwd: workingDir,
-        maxTurns: 10 // Default reasonable limit
-      };
-
-      // Handle permissions using SDK options
-      const skipPermissions = process.env.CLAUDE_SKIP_PERMISSIONS === 'true';
-      const allowedTools = process.env.CLAUDE_ALLOWED_TOOLS;
-
-      if (skipPermissions) {
-        options.permissionMode = 'bypassPermissions';
-      }
-
-      if (allowedTools) {
-        options.allowedTools = allowedTools.split(',').map(tool => tool.trim());
-      }
-
-      if (sessionId) {
-        options.resume = sessionId;
-      }
-
-      // Execute the query
-      for await (const message of query({
-        prompt,
-        abortController,
-        options
-      })) {
-        messages.push(message);
-      }
-
-      // Extract the final result from messages
-      let output = '';
-      let error = '';
-      let finalSessionId = sessionId;
-      
-      for (const message of messages) {
-        if (message.type === 'assistant') {
-          // Extract content from APIAssistantMessage
-          const content = message.message.content;
-          if (Array.isArray(content)) {
-            for (const item of content) {
-              if (item.type === 'text') {
-                output += item.text + '\n';
-              }
-            }
-          } else if (typeof content === 'string') {
-            output += content + '\n';
-          }
-          finalSessionId = message.session_id;
-        } else if (message.type === 'result') {
-          if (message.subtype === 'success') {
-            output += message.result;
-          } else {
-            error = `Error: ${message.subtype}`;
-          }
-          finalSessionId = message.session_id;
-        }
-      }
-
-      return {
-        output: output.trim(),
-        error: error.trim() || undefined,
-        exitCode: error ? 1 : 0,
-        sessionId: finalSessionId
-      };
-
-    } catch (err) {
-      return {
-        output: '',
-        error: err instanceof Error ? err.message : 'Unknown error occurred',
-        exitCode: 1
-      };
-    }
-  }
-
   async executeCommandWithStreaming(prompt: string, sessionId?: string, callbacks?: StreamCallback, workingDir: string = process.cwd()): Promise<ClaudeResult> {
     try {
 
@@ -112,7 +31,7 @@ export class ClaudeSDKWrapper {
 
       const options: Options = {
         cwd: workingDir,
-        maxTurns: 10
+        maxTurns: 100
       };
 
       // Handle permissions using SDK options

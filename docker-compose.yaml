@@ -1,15 +1,16 @@
 version: '3.8'
 
 services:
-  discord-claude-bot:
+  discord-claude-code:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: discord-claude-bot
+    container_name: discord-claude-code
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - CLAUDE_WORK_DIR=/workspace/working_dir
       - CLAUDE_SKIP_PERMISSIONS=true
+      - GH_TOKEN=${GH_TOKEN}
     volumes:
       - ./:/workspace
       - ${HOME}/.claude.json:/home/node/.claude.json
@@ -19,6 +20,7 @@ services:
       - "3000:3000"
     working_dir: /workspace
     user: node
+    entrypoint: ["./entrypoint.sh"]
     command: ["npm", "run", "dev"]
     restart: unless-stopped
 
