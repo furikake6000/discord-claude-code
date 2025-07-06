@@ -112,7 +112,7 @@ export class ClaudeSDKWrapper {
 
       const options: Options = {
         cwd: workingDir,
-        maxTurns: 10
+        maxTurns: 100
       };
 
       // Handle permissions using SDK options
