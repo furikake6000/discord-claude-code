@@ -40,8 +40,5 @@ RUN npm install
 # Copy source code
 COPY --chown=node:node . .
 
-# Expose port
-EXPOSE 3000
-
 # Default command
 CMD ["npm", "run", "dev"]

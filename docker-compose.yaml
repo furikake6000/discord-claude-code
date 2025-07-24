@@ -17,8 +17,6 @@ services:
       - ${HOME}/.claude:/home/node/.claude
       - ./agent_instruction.md:/home/node/.claude/CLAUDE.md
       - claude-cache:/home/node/.cache/claude-cli-nodejs
-    ports:
-      - "3000:3000"
     working_dir: /workspace
     user: node
     entrypoint: ["./entrypoint.sh"]
