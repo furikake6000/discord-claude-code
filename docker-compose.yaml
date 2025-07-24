@@ -15,6 +15,7 @@ services:
       - ./:/workspace
       - ${HOME}/.claude.json:/home/node/.claude.json
       - ${HOME}/.claude:/home/node/.claude
+      - ./agent_instruction.md:/home/node/.claude/CLAUDE.md
       - claude-cache:/home/node/.cache/claude-cli-nodejs
     ports:
       - "3000:3000"

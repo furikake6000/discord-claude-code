@@ -19,6 +19,10 @@ npm install
 cp .env.example .env
 # .env ファイルに DISCORD_TOKEN を設定
 
+# エージェント基本指示設定
+cp agent_instruction.md.example agent_instruction.md
+# 必要に応じて agent_instruction.md を編集
+
 # ビルド
 npm run build
 

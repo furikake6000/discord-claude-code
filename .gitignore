@@ -137,3 +137,5 @@ dist
 
 # Working directoryは汚れるので無視する
 working_dir/
+
+agent_instruction.md
