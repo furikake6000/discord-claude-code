@@ -40,5 +40,8 @@ RUN npm install
 # Copy source code
 COPY --chown=node:node . .
 
+# Set entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+
 # Default command
 CMD ["npm", "run", "dev"]

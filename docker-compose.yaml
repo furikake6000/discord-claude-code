@@ -19,7 +19,6 @@ services:
       - claude-cache:/home/node/.cache/claude-cli-nodejs
     working_dir: /workspace
     user: node
-    entrypoint: ["./entrypoint.sh"]
     command: ["npm", "run", "dev"]
     restart: unless-stopped
 
