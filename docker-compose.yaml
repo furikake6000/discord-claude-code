@@ -8,7 +8,7 @@ services:
     container_name: discord-claude-code
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - CLAUDE_WORK_DIR=/workspace/working_dir
+      - CLAUDE_WORK_DIR=/workspace
       - CLAUDE_SKIP_PERMISSIONS=true
       - GH_TOKEN=${GH_TOKEN}
     volumes:

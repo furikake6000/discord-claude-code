@@ -25,7 +25,7 @@ class DiscordClaudeBot {
     });
 
     // 環境変数またはデフォルトからベース作業ディレクトリを初期化
-    this.baseWorkingDir = process.env.CLAUDE_WORK_DIR || path.join(process.cwd(), 'working_dir');
+    this.baseWorkingDir = process.env.CLAUDE_WORK_DIR || '/workspace';
     this.claude = new ClaudeSDKWrapper();
     
     // MessageHandlerを初期化（botUserIdは後で設定）

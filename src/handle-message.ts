@@ -1,6 +1,6 @@
 import { Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
 import { ClaudeSDKWrapper, StreamCallback } from './claude-sdk-wrapper';
-import * as path from 'path';
+import { WorktreeManager } from './worktree-manager';
 import * as fs from 'fs';
 
 export class MessageHandler {
@@ -8,6 +8,7 @@ export class MessageHandler {
   private botUserId?: string;
   private threadSessionMap: Map<string, string>;
   private baseWorkingDir: string;
+  private worktreeManager: WorktreeManager;
   
   // スレッド履歴フォールバック用の設定
   private static readonly MAX_HISTORY_MESSAGES = 20;
@@ -23,6 +24,7 @@ export class MessageHandler {
     this.botUserId = botUserId;
     this.threadSessionMap = threadSessionMap;
     this.baseWorkingDir = baseWorkingDir;
+    this.worktreeManager = new WorktreeManager(baseWorkingDir);
   }
 
   async handleMessage(message: Message<true>): Promise<void> {
@@ -72,17 +74,12 @@ export class MessageHandler {
       }
 
       // チャンネル名に基づいてワークスペースを決定し、検証
-      const workspacePath = this.getWorkspaceForChannel(channel);
-      const isWorkspaceValid = await this.validateWorkspace(workspacePath);
-      
-      if (!isWorkspaceValid) {
-        await message.reply(`❌ ワークスペースディレクトリが見つかりません: \`${workspacePath}\`\n\n` +
-          `💡 **ヒント**: チャンネル名が \`repo_\` で始まる場合、対応するプロジェクトディレクトリが必要です。\n` +
-          `例: \`repo_sample_repo\` → \`${this.baseWorkingDir}/sample_repo/\``);
-        return;
+      const workspaceResult = await this.setupWorkspace(channel, message);
+      if (!workspaceResult) {
+        return; // エラーメッセージは既にsetupWorkspace内で送信済み
       }
       
-      // 作業ディレクトリはexecuteCommandWithStreamingに直接渡される
+      const { workspacePath } = workspaceResult;
       console.log(`🔄 Using workspace: ${workspacePath}`);
 
       // スレッド内にいて既存のセッションがあるかチェック
@@ -302,7 +299,10 @@ export class MessageHandler {
     }
   }
 
-  private getWorkspaceForChannel(channel: GuildTextBasedChannel): string {
+  /**
+   * ワークスペースを設定し、必要に応じてworktreeを作成
+   */
+  private async setupWorkspace(channel: GuildTextBasedChannel, message: Message<true>): Promise<{workspacePath: string} | null> {
     // スレッド内の場合、親チャンネル名を取得
     let channelName: string;
     if (channel.isThread()) {
@@ -314,19 +314,59 @@ export class MessageHandler {
     
     // チャンネル名が 'repo_' で始まるかチェック
     if (channelName.startsWith('repo_')) {
-      // チャンネル名からプロジェクト名を抽出（'repo_' プレフィックスを削除）
-      const projectName = channelName.substring(5);
-      const projectWorkspace = path.join(this.baseWorkingDir, projectName);
+      // チャンネル名からリポジトリ名を抽出（'repo_' プレフィックスを削除）
+      const repositoryName = channelName.substring(5);
       
-      console.log(`🔄 Channel '${channelName}' detected as repository channel. Project: ${projectName}`);
-      console.log(`📁 Workspace: ${projectWorkspace}`);
+      console.log(`🔄 Channel '${channelName}' detected as repository channel. Repository: ${repositoryName}`);
       
-      return projectWorkspace;
+      // リポジトリの存在確認
+      if (!this.worktreeManager.isRepositoryExists(repositoryName)) {
+        await message.reply(`❌ リポジトリが見つかりません: \`${repositoryName}\`\n\n` +
+          `💡 **ヒント**: \`/clone\` コマンドでリポジトリをクローンしてください。\n` +
+          `例: \`/clone https://github.com/user/repo.git ${repositoryName}\``);
+        return null;
+      }
+      
+      // スレッド内の場合はworktreeを作成/使用
+      if (channel.isThread()) {
+        const channelId = channel.parent?.id || channel.id;
+        const threadId = channel.id;
+        
+        try {
+          // 既存のworktreeをチェック
+          let worktreeInfo = this.worktreeManager.getWorktreeInfo(repositoryName, channelId, threadId);
+          
+          if (!worktreeInfo) {
+            // worktreeが存在しない場合は作成
+            console.log(`🌳 Creating worktree for thread ${threadId} in channel ${channelId}`);
+            worktreeInfo = await this.worktreeManager.createWorktree(repositoryName, channelId, threadId);
+          }
+          
+          return { workspacePath: worktreeInfo.worktreePath };
+          
+        } catch (error) {
+          console.error(`❌ Error setting up worktree: ${error}`);
+          await message.reply(`❌ Worktreeの設定中にエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          return null;
+        }
+      } else {
+        // スレッド外の場合はリポジトリ本体を使用
+        const repositoryPath = this.worktreeManager.getRepositoryPath(repositoryName);
+        console.log(`📁 Using main repository: ${repositoryPath}`);
+        return { workspacePath: repositoryPath };
+      }
     }
     
     // リポジトリ用以外のチャンネルの場合、ベース作業ディレクトリを使用
     console.log(`📁 Using base workspace: ${this.baseWorkingDir}`);
-    return this.baseWorkingDir;
+    
+    // ベースディレクトリの存在確認
+    if (!await this.validateWorkspace(this.baseWorkingDir)) {
+      await message.reply(`❌ ベースワークスペースディレクトリが見つかりません: \`${this.baseWorkingDir}\``);
+      return null;
+    }
+    
+    return { workspacePath: this.baseWorkingDir };
   }
 
   private async validateWorkspace(workspacePath: string): Promise<boolean> {
