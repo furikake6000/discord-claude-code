@@ -53,16 +53,39 @@ export class MessageHandler {
       return;
     }
 
-    // ボットがメンションされているか確認（またはスレッド内にいるか）
+    // チャンネル名を取得
+    let channelName: string;
     const isInThread = channel.isThread();
-    if (!isInThread && !this.isBotMentioned(message)) {
-      console.log(`🚫 Bot not mentioned in message: "${message.content}"`);
+    if (isInThread) {
+      channelName = channel.parent?.name || channel.name;
+    } else {
+      channelName = channel.name;
+    }
+
+    // チャンネル名が 'repo_' で始まるかチェック（workflows.mdの仕様: line 9-11）
+    if (!channelName.startsWith('repo_')) {
+      console.log(`🚫 Channel '${channelName}' is not a repository channel. Processing terminated.`);
       return;
     }
-    
-    console.log(`✅ ${isInThread ? 'In thread' : 'Bot mentioned'}! Processing message from ${message.author.tag}`);
 
-    // メッセージからコマンドを抽出（メンションがあれば削除）
+    // スレッドの中かどうかをチェック
+    if (isInThread) {
+      // スレッド内の場合、worktree存在確認
+      const channelId = channel.parent?.id || channel.id;
+      const threadId = channel.id;
+      
+      const worktreeExists = this.worktreeManager.isWorktreeExists(channelId, threadId);
+      console.log(`📍 Thread worktree exists: ${worktreeExists} for ${channelId}/${threadId}`);
+    } else {
+      // スレッド外の場合、メンション確認（workflows.mdの仕様: line 14）
+      if (!this.isBotMentioned(message)) {
+        // メンションでなければ処理対象ではないため終了
+        return;
+      }
+      console.log(`📍 Bot mentioned in repo channel outside thread from ${message.author.tag}`);
+    }
+
+    // メッセージからテキストを抽出（メンションがあれば削除）
     const prompt = this.extractPrompt(message);
     if (!prompt.trim()) {
       await message.reply('何かお手伝いできることはありますか？');
