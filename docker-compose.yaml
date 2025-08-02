@@ -11,11 +11,14 @@ services:
       - CLAUDE_WORK_DIR=/workspace
       - CLAUDE_SKIP_PERMISSIONS=true
       - GH_TOKEN=${GH_TOKEN}
+      - GIT_USER_NAME=${GIT_USER_NAME:-"Discord Claude Code Bot"}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-"discord-claude-code-bot@example.com"}
     volumes:
-      - workspace:/workspace
+      - .:/discord-claude-code
       - ${HOME}/.claude.json:/home/node/.claude.json
       - ${HOME}/.claude:/home/node/.claude
       - ./agent_instruction.md:/home/node/.claude/CLAUDE.md
+      - workspace:/workspace
       - claude-cache:/home/node/.cache/claude-cli-nodejs
     working_dir: /discord-claude-code
     user: node
