@@ -80,6 +80,7 @@ export class MessageHandler {
       // スレッド外の場合、メンション確認（workflows.mdの仕様: line 14）
       if (!this.isBotMentioned(message)) {
         // メンションでなければ処理対象ではないため終了
+        console.log(`🚫 Bot not mentioned in channel ${channelName}. Ignoring message.`);
         return;
       }
       console.log(`📍 Bot mentioned in repo channel outside thread from ${message.author.tag}`);
@@ -131,10 +132,7 @@ export class MessageHandler {
       }
       
       // ストリーミングコールバック設定
-      //let thinkingMessage: Message | null = null;
       let toolsMessage: Message | null = null;
-      //let assistantMessage: Message | null = null;
-      //let lastThinkingContent = '';
       let lastAssistantContent = '';
       let toolsHistory: string[] = [];
       

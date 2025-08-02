@@ -2,7 +2,6 @@ import { Client, GatewayIntentBits, Message } from 'discord.js';
 import { ClaudeSDKWrapper } from './claude-sdk-wrapper';
 import { MessageHandler } from './handle-message';
 import * as dotenv from 'dotenv';
-import * as path from 'path';
 
 dotenv.config();
 
