@@ -10,6 +10,7 @@ export interface CommandContext {
 }
 
 export abstract class BaseCommand {
+  // eslint-disable-next-line no-unused-vars
   abstract execute(context: CommandContext): Promise<void>;
   abstract getUsage(): string;
   abstract getDescription(): string;

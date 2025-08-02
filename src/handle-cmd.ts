@@ -4,6 +4,8 @@ import { BaseCommand, CommandContext } from './cmd/base';
 import { CloneCommand } from './cmd/clone';
 import { SwitchCommand } from './cmd/switch';
 import { QuitCommand } from './cmd/quit';
+import { ListReposCommand } from './cmd/list-repos';
+import { ListBranchesCommand } from './cmd/list-branches';
 
 export class CommandHandler {
   private worktreeManager: WorktreeManager;
@@ -22,6 +24,8 @@ export class CommandHandler {
     this.commands.set('clone', new CloneCommand());
     this.commands.set('switch', new SwitchCommand());
     this.commands.set('quit', new QuitCommand());
+    this.commands.set('list-repos', new ListReposCommand());
+    this.commands.set('list-branches', new ListBranchesCommand());
   }
 
   async handleCommand(message: Message<true>): Promise<void> {
@@ -41,14 +45,17 @@ export class CommandHandler {
 
       console.log(`🔧 Processing command: ${commandName} with args: [${args.join(', ')}]`);
 
+      // helpコマンドは特別扱い
+      if (commandName === 'help') {
+        await this.handleHelpCommand(message, args);
+        return;
+      }
+
       // コマンドの存在確認
       const command = this.commands.get(commandName);
       if (!command) {
         await message.reply(`❌ 不明なコマンドです: \`${commandName}\`\n\n` +
-          `利用可能なコマンド:\n` +
-          `• \`/clone <repository_url> [directory]\` - リポジトリをクローン\n` +
-          `• \`/switch [-c] [branch_name]\` - ブランチを切り替え（スレッド内のみ）\n` +
-          `• \`/quit\` - 現在のworktreeを削除（スレッド内のみ）`);
+          `💡 \`/help\` で利用可能なコマンド一覧を確認できます。`);
         return;
       }
 
@@ -71,7 +78,11 @@ export class CommandHandler {
   }
 
   getAvailableCommands(): string[] {
-    return Array.from(this.commands.keys());
+    return Array.from(this.commands.keys()).concat(['help']);
+  }
+
+  getCommand(commandName: string): BaseCommand | undefined {
+    return this.commands.get(commandName);
   }
 
   getCommandHelp(commandName: string): string | null {
@@ -83,5 +94,77 @@ export class CommandHandler {
     return `**${commandName}**\n` +
            `使用法: ${command.getUsage()}\n` +
            `説明: ${command.getDescription()}`;
+  }
+
+  private async handleHelpCommand(message: Message<true>, args: string[]): Promise<void> {
+    try {
+      // 特定のコマンドのヘルプが要求された場合
+      if (args.length > 0) {
+        const commandName = args[0].toLowerCase();
+        await this.showCommandHelp(message, commandName);
+        return;
+      }
+
+      // 全コマンドの一覧を表示
+      await this.showAllCommands(message);
+    } catch (error) {
+      console.error(`❌ Error showing help: ${error}`);
+      await message.reply(`❌ ヘルプの表示中にエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async showCommandHelp(message: Message<true>, commandName: string): Promise<void> {
+    // helpコマンド自身の場合
+    if (commandName === 'help') {
+      const helpMessage = `📖 **コマンドヘルプ**: \`help\`\n\n` +
+        `**使用法**: \`/help [command]\`\n` +
+        `**説明**: 利用可能なコマンドの一覧または特定のコマンドの詳細を表示します\n\n` +
+        `**例**:\n` +
+        `• \`/help\`\n` +
+        `• \`/help clone\``;
+      
+      await message.reply(helpMessage);
+      return;
+    }
+
+    const command = this.commands.get(commandName);
+    if (!command) {
+      await message.reply(`❌ 不明なコマンドです: \`${commandName}\`\n\n` +
+        `💡 \`/help\` で利用可能なコマンド一覧を確認できます。`);
+      return;
+    }
+
+    // 動的にコマンド情報を取得
+    const usage = command.getUsage();
+    const description = command.getDescription();
+
+    let helpMessage = `📖 **コマンドヘルプ**: \`${commandName}\`\n\n` +
+      `**使用法**: \`${usage}\`\n` +
+      `**説明**: ${description}`;
+
+    await message.reply(helpMessage);
+  }
+
+  private async showAllCommands(message: Message<true>): Promise<void> {
+    const availableCommands = this.getAvailableCommands();
+
+    let helpMessage = `📋 **利用可能なコマンド**\n\n`;
+
+    // コマンド一覧を表示
+    for (const commandName of availableCommands) {
+      if (commandName === 'help') {
+        helpMessage += `• \`/help [command]\` - 利用可能なコマンドの一覧または特定のコマンドの詳細を表示します\n`;
+      } else {
+        const command = this.commands.get(commandName);
+        if (command) {
+          const usage = command.getUsage();
+          const description = command.getDescription();
+          helpMessage += `• \`${usage}\` - ${description}\n`;
+        }
+      }
+    }
+    helpMessage += '\n';
+
+    await message.reply(helpMessage);
   }
 }

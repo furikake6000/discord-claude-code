@@ -70,9 +70,39 @@ export class WorktreeManager {
   }
 
   /**
+   * ブランチが存在するかチェック
+   */
+  private branchExists(repositoryPath: string, branchName: string): boolean {
+    try {
+      // ローカルブランチとリモートブランチの両方をチェック
+      execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, {
+        cwd: repositoryPath,
+        stdio: 'pipe'
+      });
+      return true;
+    } catch {
+      try {
+        // リモートブランチをチェック
+        execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, {
+          cwd: repositoryPath,
+          stdio: 'pipe'
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  /**
    * worktreeを作成
    */
-  async createWorktree(repositoryName: string, channelId: string, threadId: string, branch: string = 'main'): Promise<WorktreeInfo> {
+  async createWorktree(repositoryName: string, channelId: string, threadId: string, branch: string = ''): Promise<WorktreeInfo> {
+    // デフォルトではブランチ名はthreadIdと同じ
+    if (!branch) {
+      branch = threadId;
+    }
+    
     const repositoryPath = this.getRepositoryPath(repositoryName);
     const worktreePath = this.getWorktreePath(channelId, threadId);
 
@@ -100,12 +130,22 @@ export class WorktreeManager {
         fs.mkdirSync(parentDir, { recursive: true });
       }
 
-      // git worktreeコマンドでworktreeを作成
-      console.log(`🌳 Creating worktree: ${worktreePath} from ${repositoryPath}:${branch}`);
-      execSync(`git worktree add "${worktreePath}" ${branch}`, {
-        cwd: repositoryPath,
-        stdio: 'pipe'
-      });
+      // ブランチの存在確認
+      if (!this.branchExists(repositoryPath, branch)) {
+        console.log(`🌿 Branch ${branch} does not exist, creating from main`);
+        // ブランチが存在しない場合はmainから新しいブランチを作成してworktreeを作成
+        execSync(`git worktree add "${worktreePath}" -b ${branch} main`, {
+          cwd: repositoryPath,
+          stdio: 'pipe'
+        });
+      } else {
+        // ブランチが存在する場合は通常のworktree作成
+        console.log(`🌳 Creating worktree: ${worktreePath} from ${repositoryPath}:${branch}`);
+        execSync(`git worktree add "${worktreePath}" ${branch}`, {
+          cwd: repositoryPath,
+          stdio: 'pipe'
+        });
+      }
 
       console.log(`✅ Worktree created successfully: ${worktreePath}`);
 
@@ -220,6 +260,90 @@ export class WorktreeManager {
     } catch (error) {
       console.error(`❌ Error switching branch: ${error}`);
       throw new Error(`Failed to switch to branch ${branch}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * 指定したチャンネルの全worktreeを取得
+   */
+  getChannelWorktrees(channelId: string): WorktreeInfo[] {
+    try {
+      const channelDir = path.join(this.treesDir, channelId);
+      
+      // チャンネルディレクトリが存在しない場合は空配列を返す
+      if (!fs.existsSync(channelDir)) {
+        return [];
+      }
+
+      const worktrees: WorktreeInfo[] = [];
+      const threadIds = fs.readdirSync(channelDir).filter(item => {
+        const itemPath = path.join(channelDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      for (const threadId of threadIds) {
+        const worktreePath = this.getWorktreePath(channelId, threadId);
+        
+        // worktreeが実際に存在し、有効であるかチェック
+        if (fs.existsSync(worktreePath) && fs.statSync(worktreePath).isDirectory()) {
+          // worktreeが属するリポジトリを特定
+          const repositoryName = this.findRepositoryForWorktree(worktreePath);
+          
+          if (repositoryName) {
+            worktrees.push({
+              channelId,
+              threadId,
+              repositoryName,
+              worktreePath,
+              repositoryPath: this.getRepositoryPath(repositoryName)
+            });
+          }
+        }
+      }
+
+      return worktrees;
+    } catch (error) {
+      console.error(`❌ Error getting channel worktrees for ${channelId}: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * worktreeパスからそれが属するリポジトリ名を特定
+   */
+  private findRepositoryForWorktree(worktreePath: string): string | null {
+    try {
+      // git worktree listを使用して、worktreeが属するリポジトリを特定
+      const repositories = this.getAvailableRepositories();
+      
+      for (const repositoryName of repositories) {
+        const repositoryPath = this.getRepositoryPath(repositoryName);
+        
+        try {
+          // git worktree listでworktreeの一覧を取得
+          const worktreeList = execSync('git worktree list --porcelain', {
+            cwd: repositoryPath,
+            encoding: 'utf8'
+          });
+
+          // worktreeListから該当するパスを検索
+          const lines = worktreeList.split('\n');
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('worktree ') && line.includes(worktreePath)) {
+              return repositoryName;
+            }
+          }
+        } catch (error) {
+          // このリポジトリでの検索でエラーが発生した場合は次のリポジトリへ
+          continue;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error(`❌ Error finding repository for worktree ${worktreePath}: ${error}`);
+      return null;
     }
   }
 }

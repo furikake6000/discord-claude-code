@@ -47,9 +47,6 @@ export class QuitCommand extends BaseCommand {
     try {
       const worktreePath = worktreeManager.getWorktreePath(channelId, threadId);
       
-      await message.reply(`🔄 Worktreeを削除しています: \`${worktreePath}\`\n\n` +
-        `⚠️ **注意**: この操作は元に戻せません。`);
-
       // worktreeを削除
       await worktreeManager.removeWorktree(repositoryName, channelId, threadId);
 
