@@ -13,7 +13,7 @@ class DiscordClaudeBot {
   private threadSessionMap: Map<string, string> = new Map();
   private baseWorkingDir: string;
   
-  // Configuration for thread history fallback
+  // スレッド履歴フォールバック用の設定
   private static readonly MAX_HISTORY_MESSAGES = 20;
   private static readonly MAX_HISTORY_CHARS = 4000;
 
@@ -27,7 +27,7 @@ class DiscordClaudeBot {
       ]
     });
 
-    // Initialize base working directory from environment variable or default
+    // 環境変数またはデフォルトからベース作業ディレクトリを初期化
     this.baseWorkingDir = process.env.CLAUDE_WORK_DIR || path.join(process.cwd(), 'working_dir');
     this.claude = new ClaudeSDKWrapper();
 
@@ -41,7 +41,7 @@ class DiscordClaudeBot {
     });
 
     this.client.on('messageCreate', async (message: Message) => {
-      // Ignore non-guild messages
+      // ギルド以外のメッセージを無視
       if (!message.inGuild) return;
 
       await this.handleMessage(message as Message<true>);
@@ -52,19 +52,19 @@ class DiscordClaudeBot {
     console.log(`📨 Message received: "${message.content}" from ${message.author.tag}`);
     
     let channel = message.channel;
-    // Stage channels and forum threads are not supported for threads
+    // ステージチャンネルとフォーラムスレッドはスレッド対応していない
     if (channel instanceof StageChannel) {
       console.log(`🚫 This channel type is not supported. Ignoring message from ${message.author.tag}`)
       return;
     }
 
-    // Ignore bot messages
+    // ボットメッセージを無視
     if (message.author.bot) {
       console.log(`🤖 Ignoring bot message from ${message.author.tag}`);
       return;
     }
 
-    // Check if bot is mentioned (or if we're in a thread)
+    // ボットがメンションされているか確認（またはスレッド内にいるか）
     const isInThread = channel.isThread();
     if (!isInThread && !this.isBotMentioned(message)) {
       console.log(`🚫 Bot not mentioned in message: "${message.content}"`);
@@ -73,28 +73,28 @@ class DiscordClaudeBot {
     
     console.log(`✅ ${isInThread ? 'In thread' : 'Bot mentioned'}! Processing message from ${message.author.tag}`);
 
-    // Extract command from message (remove mention if present)
+    // メッセージからコマンドを抽出（メンションがあれば削除）
     const prompt = this.extractPrompt(message);
     if (!prompt.trim()) {
       await message.reply('何かお手伝いできることはありますか？');
       return;
     }
 
-    // Show typing indicator
+    // タイピングインジケーターを表示
     await channel.sendTyping();
 
     try {
       console.log(`📝 Executing: ${prompt}`);
       
       if (!isInThread) {
-        // Start a thread if not already in one
+        // まだスレッド内にいない場合はスレッドを開始
         const thread = await message.startThread({
           name: `Claude Code: ${prompt.substring(0, 80)}${prompt.length > 80 ? '...' : ''}`,
         });
         channel = thread;
       }
 
-      // Determine workspace based on channel name and validate it
+      // チャンネル名に基づいてワークスペースを決定し、検証
       const workspacePath = this.getWorkspaceForChannel(channel);
       const isWorkspaceValid = await this.validateWorkspace(workspacePath);
       
@@ -105,16 +105,16 @@ class DiscordClaudeBot {
         return;
       }
       
-      // Working directory will be passed directly to executeCommandWithStreaming
+      // 作業ディレクトリはexecuteCommandWithStreamingに直接渡される
       console.log(`🔄 Using workspace: ${workspacePath}`);
 
-      // Check if we're in a thread and have an existing session
+      // スレッド内にいて既存のセッションがあるかチェック
       const threadId = isInThread ? channel.id : null;
       const existingSessionId = threadId ? this.threadSessionMap.get(threadId) : undefined;
       
       let finalPrompt = prompt;
       
-      // If we're in a thread but don't have a session ID, include thread history
+      // スレッド内にいるがセッションIDがない場合、スレッド履歴を含める
       if (isInThread && !existingSessionId) {
         const threadHistory = await this.getThreadHistory(channel, message.id);
         if (threadHistory) {
@@ -183,12 +183,12 @@ class DiscordClaudeBot {
       
       const result = await this.claude.executeCommandWithStreaming(finalPrompt, existingSessionId, callbacks, workspacePath);
       
-      // Store session ID for future use in this thread
+      // このスレッドで将来使用するためにセッションIDを保存
       if (result.sessionId) {
         if (threadId) {
           this.threadSessionMap.set(threadId, result.sessionId);
         } else if (channel.isThread()) {
-          // New thread was created
+          // 新しいスレッドが作成された
           this.threadSessionMap.set(channel.id, result.sessionId);
         }
       }
@@ -221,7 +221,7 @@ class DiscordClaudeBot {
   private extractPrompt(message: Message): string {
     let content = message.content;
     
-    // Remove bot mention
+    // ボットメンションを削除
     if (this.botUserId) {
       content = content.replace(new RegExp(`<@!?${this.botUserId}>`, 'g'), '').trim();
     }
@@ -237,7 +237,7 @@ class DiscordClaudeBot {
       return;
     }
 
-    // Split long messages
+    // 長いメッセージを分割
     const chunks = this.splitMessage(content, maxLength);
     
     for (const chunk of chunks) {
@@ -258,7 +258,7 @@ class DiscordClaudeBot {
           currentChunk = '';
         }
         
-        // If single line is too long, split it
+        // 単一行が長すぎる場合は分割
         if (line.length > maxLength) {
           chunks.push(...this.splitLongLine(line, maxLength));
         } else {
@@ -294,22 +294,22 @@ class DiscordClaudeBot {
         limit: DiscordClaudeBot.MAX_HISTORY_MESSAGES 
       });
       
-      // Sort messages by creation time (oldest first)
+      // 作成時間で並べ替え（古い順）
       const sortedMessages = Array.from(messages.values())
-        .filter(msg => msg.id !== currentMessageId) // Exclude current message
+        .filter(msg => msg.id !== currentMessageId) // 現在のメッセージを除外
         .sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
       let historyText = '';
       let totalChars = 0;
 
       for (const msg of sortedMessages) {
-        // Skip empty messages or messages with only mentions
+        // 空のメッセージまたはメンションのみのメッセージをスキップ
         if (!msg.content || msg.content.trim() === '') continue;
         
-        // Format message with author and content
+        // 作成者とコンテンツでメッセージをフォーマット
         const formattedMessage = `${msg.author.tag}: ${msg.content}\n`;
         
-        // Check if adding this message would exceed character limit
+        // このメッセージを追加すると文字制限を超えるかチェック
         if (totalChars + formattedMessage.length > DiscordClaudeBot.MAX_HISTORY_CHARS) {
           break;
         }
@@ -326,7 +326,7 @@ class DiscordClaudeBot {
   }
 
   private getWorkspaceForChannel(channel: GuildTextBasedChannel): string {
-    // If we're in a thread, get the parent channel name
+    // スレッド内の場合、親チャンネル名を取得
     let channelName: string;
     if (channel.isThread()) {
       channelName = channel.parent?.name || channel.name;
@@ -335,9 +335,9 @@ class DiscordClaudeBot {
       channelName = channel.name;
     }
     
-    // Check if channel name starts with 'dev_'
+    // チャンネル名が 'dev_' で始まるかチェック
     if (channelName.startsWith('dev_')) {
-      // Extract project name from channel name (remove 'dev_' prefix)
+      // チャンネル名からプロジェクト名を抽出（'dev_' プレフィックスを削除）
       const projectName = channelName.substring(4);
       const projectWorkspace = path.join(this.baseWorkingDir, projectName);
       
@@ -347,20 +347,20 @@ class DiscordClaudeBot {
       return projectWorkspace;
     }
     
-    // For non-dev channels, use the base working directory
+    // 開発用以外のチャンネルの場合、ベース作業ディレクトリを使用
     console.log(`📁 Using base workspace: ${this.baseWorkingDir}`);
     return this.baseWorkingDir;
   }
 
   private async validateWorkspace(workspacePath: string): Promise<boolean> {
     try {
-      // Check if the workspace directory exists
+      // ワークスペースディレクトリが存在するかチェック
       if (!fs.existsSync(workspacePath)) {
         console.log(`⚠️  Workspace directory does not exist: ${workspacePath}`);
         return false;
       }
       
-      // Check if it's a directory
+      // ディレクトリかどうかチェック
       const stats = fs.statSync(workspacePath);
       if (!stats.isDirectory()) {
         console.log(`⚠️  Workspace path is not a directory: ${workspacePath}`);
@@ -389,7 +389,7 @@ class DiscordClaudeBot {
   }
 }
 
-// Start bot
+// ボット開始
 async function main() {
   const bot = new DiscordClaudeBot();
   
