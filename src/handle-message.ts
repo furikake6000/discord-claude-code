@@ -77,8 +77,8 @@ export class MessageHandler {
       
       if (!isWorkspaceValid) {
         await message.reply(`❌ ワークスペースディレクトリが見つかりません: \`${workspacePath}\`\n\n` +
-          `💡 **ヒント**: チャンネル名が \`dev_\` で始まる場合、対応するプロジェクトディレクトリが必要です。\n` +
-          `例: \`dev_sample_repo\` → \`${this.baseWorkingDir}/sample_repo/\``);
+          `💡 **ヒント**: チャンネル名が \`repo_\` で始まる場合、対応するプロジェクトディレクトリが必要です。\n` +
+          `例: \`repo_sample_repo\` → \`${this.baseWorkingDir}/sample_repo/\``);
         return;
       }
       
@@ -312,19 +312,19 @@ export class MessageHandler {
       channelName = channel.name;
     }
     
-    // チャンネル名が 'dev_' で始まるかチェック
-    if (channelName.startsWith('dev_')) {
-      // チャンネル名からプロジェクト名を抽出（'dev_' プレフィックスを削除）
-      const projectName = channelName.substring(4);
+    // チャンネル名が 'repo_' で始まるかチェック
+    if (channelName.startsWith('repo_')) {
+      // チャンネル名からプロジェクト名を抽出（'repo_' プレフィックスを削除）
+      const projectName = channelName.substring(5);
       const projectWorkspace = path.join(this.baseWorkingDir, projectName);
       
-      console.log(`🔄 Channel '${channelName}' detected as development channel. Project: ${projectName}`);
+      console.log(`🔄 Channel '${channelName}' detected as repository channel. Project: ${projectName}`);
       console.log(`📁 Workspace: ${projectWorkspace}`);
       
       return projectWorkspace;
     }
     
-    // 開発用以外のチャンネルの場合、ベース作業ディレクトリを使用
+    // リポジトリ用以外のチャンネルの場合、ベース作業ディレクトリを使用
     console.log(`📁 Using base workspace: ${this.baseWorkingDir}`);
     return this.baseWorkingDir;
   }
