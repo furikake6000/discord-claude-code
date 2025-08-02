@@ -34,7 +34,7 @@ export class ClaudeSDKWrapper {
         maxTurns: 100
       };
 
-      // Handle permissions using SDK options
+      // SDKオプションを使用して権限を処理
       const skipPermissions = process.env.CLAUDE_SKIP_PERMISSIONS === 'true';
       const allowedTools = process.env.CLAUDE_ALLOWED_TOOLS;
 
@@ -55,7 +55,7 @@ export class ClaudeSDKWrapper {
       let error = '';
       let finalSessionId = sessionId;
 
-      // Execute the query with streaming callbacks
+      // ストリーミングコールバックでクエリを実行
       for await (const message of query({
         prompt,
         abortController,
@@ -63,10 +63,10 @@ export class ClaudeSDKWrapper {
       })) {
         messages.push(message);
 
-        // Process streaming events
+        // ストリーミングイベントを処理
         await this.processSDKMessage(message, callbacks);
 
-        // Accumulate output
+        // 出力を累積
         if (message.type === 'assistant') {
           const content = message.message.content;
           if (Array.isArray(content)) {
@@ -141,14 +141,14 @@ export class ClaudeSDKWrapper {
         break;
 
       case 'user':
-        // User message processing if needed
+        // 必要に応じてユーザーメッセージを処理
         if (callbacks.onUpdate) {
           await callbacks.onUpdate('User message processed');
         }
         break;
 
       default:
-        // Handle other message types if needed
+        // 必要に応じて他のメッセージタイプを処理
         if (callbacks.onUpdate) {
           await callbacks.onUpdate(JSON.stringify(message));
         }

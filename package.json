@@ -2,11 +2,11 @@
   "name": "discord-claude-code",
   "version": "1.0.0",
   "description": "Discord bot that wraps Claude Code functionality",
-  "main": "dist/bot.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/bot.js",
-    "dev": "ts-node src/bot.ts",
+    "start": "node dist/main.js",
+    "dev": "ts-node src/main.ts",
     "lint": "eslint src --ext .ts",
     "test": "jest"
   },

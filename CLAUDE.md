@@ -34,7 +34,7 @@ npm run lint        # TypeScriptファイルに対するESLintの実行
 - セッション管理とツール権限制御
 - 操作用の設定可能な作業ディレクトリ
 
-### DiscordClaudeBot (`src/bot.ts`)
+### DiscordClaudeBot (`src/main.ts`)
 - Discord統合を処理するメインbotクラス
 - メンションの処理とプロンプトの抽出
 - スレッド単位でのセッション管理
@@ -46,7 +46,7 @@ npm run lint        # TypeScriptファイルに対するESLintの実行
 ユーザーはDiscordでbotにメンションすることで対話します：
 ```
 @bot このプロジェクト用のREADMEファイルを作成して
-@bot src/bot.tsのTypeScriptエラーを修正して
+@bot src/main.tsのTypeScriptエラーを修正して
 @bot Next.js 14の新機能を検索して
 ```
 
