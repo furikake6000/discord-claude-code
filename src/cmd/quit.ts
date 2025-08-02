@@ -1,4 +1,4 @@
-import { BaseCommand, CommandContext } from '../handle-cmd';
+import { BaseCommand, CommandContext } from './base';
 
 export class QuitCommand extends BaseCommand {
   getUsage(): string {

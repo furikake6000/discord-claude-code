@@ -1,22 +1,9 @@
 import { Message } from 'discord.js';
 import { WorktreeManager } from './worktree-manager';
+import { BaseCommand, CommandContext } from './cmd/base';
 import { CloneCommand } from './cmd/clone';
 import { SwitchCommand } from './cmd/switch';
 import { QuitCommand } from './cmd/quit';
-
-export interface CommandContext {
-  message: Message<true>;
-  worktreeManager: WorktreeManager;
-  baseWorkingDir: string;
-  args: string[];
-  commandName: string;
-}
-
-export abstract class BaseCommand {
-  abstract execute(context: CommandContext): Promise<void>;
-  abstract getUsage(): string;
-  abstract getDescription(): string;
-}
 
 export class CommandHandler {
   private worktreeManager: WorktreeManager;

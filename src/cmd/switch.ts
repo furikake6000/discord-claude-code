@@ -1,4 +1,4 @@
-import { BaseCommand, CommandContext } from '../handle-cmd';
+import { BaseCommand, CommandContext } from './base';
 import { execSync } from 'child_process';
 
 export class SwitchCommand extends BaseCommand {
