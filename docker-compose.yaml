@@ -17,7 +17,7 @@ services:
       - ${HOME}/.claude:/home/node/.claude
       - ./agent_instruction.md:/home/node/.claude/CLAUDE.md
       - claude-cache:/home/node/.cache/claude-cli-nodejs
-    working_dir: /workspace
+    working_dir: /discord-claude-code
     user: node
     command: ["npm", "run", "dev"]
     restart: unless-stopped

@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
 USER node
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /discord-claude-code
 
 # Copy package files
 COPY --chown=node:node package*.json ./
