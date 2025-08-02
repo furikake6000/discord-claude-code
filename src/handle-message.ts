@@ -1,6 +1,7 @@
 import { Message, StageChannel, TextBasedChannel, GuildTextBasedChannel } from 'discord.js';
 import { ClaudeSDKWrapper, StreamCallback } from './claude-sdk-wrapper';
 import { WorktreeManager } from './worktree-manager';
+import { CommandHandler } from './handle-cmd';
 import * as fs from 'fs';
 
 export class MessageHandler {
@@ -9,6 +10,7 @@ export class MessageHandler {
   private threadSessionMap: Map<string, string>;
   private baseWorkingDir: string;
   private worktreeManager: WorktreeManager;
+  private commandHandler: CommandHandler;
   
   // スレッド履歴フォールバック用の設定
   private static readonly MAX_HISTORY_MESSAGES = 20;
@@ -25,6 +27,7 @@ export class MessageHandler {
     this.threadSessionMap = threadSessionMap;
     this.baseWorkingDir = baseWorkingDir;
     this.worktreeManager = new WorktreeManager(baseWorkingDir);
+    this.commandHandler = new CommandHandler(this.worktreeManager, baseWorkingDir);
   }
 
   async handleMessage(message: Message<true>): Promise<void> {
@@ -40,6 +43,13 @@ export class MessageHandler {
     // ボットメッセージを無視
     if (message.author.bot) {
       console.log(`🤖 Ignoring bot message from ${message.author.tag}`);
+      return;
+    }
+
+    // コマンドプレフィックスのチェック
+    if (message.content.startsWith('/')) {
+      console.log(`🔧 Command detected: ${message.content}`);
+      await this.commandHandler.handleCommand(message);
       return;
     }
 
