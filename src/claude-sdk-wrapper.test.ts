@@ -31,6 +31,7 @@ describe('ClaudeSDKWrapper', () => {
     it('should handle streaming errors', async () => {
       const error = new Error('Streaming error');
       mockQuery.mockImplementation(async function* () {
+        yield null; // ESLintエラー回避のためのyield
         throw error;
       });
 
