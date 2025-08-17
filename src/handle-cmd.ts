@@ -6,6 +6,7 @@ import { SwitchCommand } from './cmd/switch';
 import { QuitCommand } from './cmd/quit';
 import { ListReposCommand } from './cmd/list-repos';
 import { ListBranchesCommand } from './cmd/list-branches';
+import { PullCommand } from './cmd/pull';
 
 export class CommandHandler {
   private worktreeManager: WorktreeManager;
@@ -26,6 +27,7 @@ export class CommandHandler {
     this.commands.set('quit', new QuitCommand());
     this.commands.set('list-repos', new ListReposCommand());
     this.commands.set('list-branches', new ListBranchesCommand());
+    this.commands.set('pull', new PullCommand());
   }
 
   async handleCommand(message: Message<true>): Promise<void> {
